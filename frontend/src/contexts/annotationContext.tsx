@@ -132,27 +132,27 @@ export function AnnotationContextProvider({ children }) {
         };
     };
 
-    const saveforamedia = async () => {
-        await refreshAccessToken(true);
-
-        let annotationData = {
-            annotations: observations,
-            id_group: idGroup,
-            group_observations_id_to_update: selectedGroupedObservation,
-            group_observations_id_to_individualize: unselectedGroupedObservation
-        };
-        FilesService
-            .updateAnnotationsFilesAnnotationFileIdPatch(currentImage, {
-              annotations: annotationData,
-              deployment_id: currentDeployment
-            })
-            .then(res => {
-                updateListFile();
-            })
-            .catch((err) => {
-                console.log("Error during annotation saving.");
-                console.log(err);
-            });
+    const saveforamedia = () => {
+        refreshAccessToken(true).then(() => {
+            let annotationData = {
+                annotations: observations,
+                id_group: idGroup,
+                group_observations_id_to_update: selectedGroupedObservation,
+                group_observations_id_to_individualize: unselectedGroupedObservation
+            };
+            FilesService
+                .updateAnnotationsFilesAnnotationFileIdPatch(currentImage, {
+                  annotations: annotationData,
+                  deployment_id: currentDeployment
+                })
+                .then(res => {
+                    updateListFile();
+                })
+                .catch((err) => {
+                    console.log("Error during annotation saving.");
+                    console.log(err);
+                });
+        });
     };
 
     const saveandnext = () => {
@@ -175,14 +175,10 @@ export function AnnotationContextProvider({ children }) {
     };
 
     useEffect(() => {
-        const asyncSaveForAMedia = async () => {
-            if (confirmedSave) {
-                await saveforamedia();
-                next();
-            }
+        if (confirmedSave) {
+            saveforamedia();
+            next();
         }
-
-        asyncSaveForAMedia();
     }, [confirmedSave]);
 
     const handleAddObservation = () => {
