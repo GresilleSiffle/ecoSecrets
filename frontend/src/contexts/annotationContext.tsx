@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { v4 as uuidv4 } from "uuid";
 import { Annotation, FilesService, MetadataData } from "../client";
+import { AuthContext } from "./AuthContextProvider";
 import { useMainContext } from "./mainContext";
 import { useFilesContext } from "./filesContext";
 
@@ -14,8 +15,9 @@ export const useAnnotationContext = () => useContext(AnnotationContext);
 export function AnnotationContextProvider({ children }) {
 
     let params = useParams();
+    const { refreshAccessToken } = useContext(AuthContext);
 
-    const { projects, currentDeployment, setCurrentDeployment, setCurrentProject } = 
+    const { projects, currentDeployment, setCurrentDeployment, setCurrentProject } =
     useMainContext();
     const { image, updateListFile, currentImage, setCurrentImage, files } =
     useFilesContext();
@@ -33,7 +35,7 @@ export function AnnotationContextProvider({ children }) {
     const [annotationButtonDisabled, setAnnotationButtonDisabled] = useState(false);
 
     const [tabValue, setTabValue] = useState(0);
-    
+
     const [idGroup, setIdGroup] = useState<string>("");
     const [modifiedObservationGroup, setModifiedObservationGroup] = useState<Annotation[]>([]);
     const [openAnnotationGroupModale, setOpenAnnotationGroupModale] = useState(false);
@@ -131,24 +133,26 @@ export function AnnotationContextProvider({ children }) {
     };
 
     const saveforamedia = () => {
-        let annotationData = {
-            annotations: observations,
-            id_group: idGroup,
-            group_observations_id_to_update: selectedGroupedObservation, 
-            group_observations_id_to_individualize: unselectedGroupedObservation
-        };
-        FilesService
-            .updateAnnotationsFilesAnnotationFileIdPatch(currentImage, {
-              annotations: annotationData,
-              deployment_id: currentDeployment
-            })
-            .then(res => {
-                updateListFile();
-            })
-            .catch((err) => {
-                console.log("Error during annotation saving.");
-                console.log(err);
-            });
+        refreshAccessToken(true).then(() => {
+            let annotationData = {
+                annotations: observations,
+                id_group: idGroup,
+                group_observations_id_to_update: selectedGroupedObservation,
+                group_observations_id_to_individualize: unselectedGroupedObservation
+            };
+            FilesService
+                .updateAnnotationsFilesAnnotationFileIdPatch(currentImage, {
+                  annotations: annotationData,
+                  deployment_id: currentDeployment
+                })
+                .then(res => {
+                    updateListFile();
+                })
+                .catch((err) => {
+                    console.log("Error during annotation saving.");
+                    console.log(err);
+                });
+        });
     };
 
     const saveandnext = () => {
@@ -215,8 +219,8 @@ export function AnnotationContextProvider({ children }) {
             if (ob.id === id) {
 
                 ob[params] = value;
-                if (fieldsMandatory.includes(params) 
-                    && ob[params] && 
+                if (fieldsMandatory.includes(params)
+                    && ob[params] &&
                     ob["number"] === 0) {
                         setIsMinimalObservation(true);
                         ob["number"] = 1;
@@ -260,7 +264,7 @@ export function AnnotationContextProvider({ children }) {
     useEffect(() => {
         let fieldToCheck: string[] = [];
         for (var i = 0; i < observations?.length; i++) {
-            for (const property in observations[i]) { 
+            for (const property in observations[i]) {
                 if (fieldsMandatory.includes(property)) {
                     fieldToCheck.push(observations[i][property])
                 }
@@ -275,7 +279,7 @@ export function AnnotationContextProvider({ children }) {
         });
         setAnnotated(result)
     }, [handleCheckChange]);
-    
+
     useEffect(() => {
         if (gridView) {
             setIdGroup(uuidv4());
@@ -293,7 +297,7 @@ export function AnnotationContextProvider({ children }) {
     }, [modifiedObservationGroup]);
 
     return(
-        <AnnotationContext.Provider 
+        <AnnotationContext.Provider
             value={{
                 observations, setObservations,
                 annotated, setAnnotated,
@@ -310,7 +314,7 @@ export function AnnotationContextProvider({ children }) {
                 modifiedObservationGroup, setModifiedObservationGroup,
                 selectedGroupedObservation, setSelectedGroupedObservation,
                 unselectedGroupedObservation, setUnselectedGroupedObservation,
-                metadata, setMetadata, 
+                metadata, setMetadata,
                 handleCloseSaveErrorDialog,
                 updateUrl,
                 previous,

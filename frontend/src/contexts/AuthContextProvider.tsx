@@ -25,6 +25,10 @@ interface AuthContextValues {
    */
   username: string;
   /**
+   * Refresh the API access token if possible.
+   */
+  refreshAccessToken: (logoutOnFailure?: boolean, minValidity?: number) => Promise<void>;
+  /**
    * Function to initiate the logout
    */
   logout: () => void;
@@ -40,9 +44,12 @@ interface AuthContextValues {
 const defaultAuthContextValues: AuthContextValues = {
   isAuthenticated: false,
   username: "",
+  refreshAccessToken: async () => {},
   logout: () => {},
   hasRole: (role) => false,
 };
+
+const TOKEN_MIN_VALIDITY = 120;
 
 /**
  * Create the AuthContext using the default values.
@@ -124,26 +131,42 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     }
   }, [isAuthenticated]);
 
-  /**
-   * Initiate the logout
-   */
   const logout = () => {
     keycloak.logout();
   };
 
-  /**
-   * Check if the user has the given role
-   * @param role to be checked
-   * @returns whether or not if the user has the role
-   */
+  const onTokenRefresh = (token: string | undefined) => {
+    if (token) {
+      OpenAPI.TOKEN = token;
+    }
+  }
+
+  const refreshAccessToken = async (
+    logoutOnFailure: boolean | undefined = true,
+    minValidity: number | undefined = TOKEN_MIN_VALIDITY
+  ) => {
+    let refreshed = false;
+
+    try {
+      refreshed = await keycloak.updateToken(minValidity);
+    } catch {
+      if (logoutOnFailure) {
+        logout();
+      }
+    }
+
+    if (refreshed) {
+      onTokenRefresh(keycloak.token);
+    }
+  };
+
   const hasRole = (role: string) => {
     return keycloak.hasRealmRole(role);
   };
 
-  // Setup the context provider
   return (
     <AuthContext.Provider
-      value={{ isAuthenticated, username, logout, hasRole }}
+      value={{ isAuthenticated, username, refreshAccessToken, logout, hasRole }}
     >
       {props.children}
     </AuthContext.Provider>
